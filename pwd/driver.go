@@ -103,7 +103,14 @@ func (d *Driver) Create() error {
 	if jsonErr != nil {
 		return jsonErr
 	}
-	resp, err := http.Post(fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.Port, d.SessionId), "application/json", bytes.NewReader(b))
+	//careful on using the right scheme and the right port (a PWD that starts with http or https is not the same)
+	var pURL string
+	if d.Scheme == "http" {
+	 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.Port, d.SessionId)
+	} else {
+	 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
+	}
+	resp, err := http.Post(pURL, "application/json", bytes.NewReader(b))
 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Could not create instance %v %v", err, resp)
@@ -263,8 +270,14 @@ func (d *Driver) PreCreateCheck() error {
 }
 
 func (d *Driver) Remove() error {
-	log.Println("deleting your sandbox: ", d.InstanceName, ", from session: ", fmt.Sprintf("%s://%s:%s/p/%s", d.Scheme, d.Hostname, d.Port, d.SessionId))
-	r, _ := http.NewRequest("DELETE", fmt.Sprintf("%s://%s:%s/sessions/%s/instances/%s", d.Scheme, d.Hostname, d.Port, d.SessionId, d.InstanceName), nil)
+	var pURL string
+	if d.Scheme == "http" {
+	 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.Port, d.SessionId)
+	} else {
+	 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
+	}
+	log.Println("deleting your sandbox: ", d.InstanceName, ", from session: ", pURL)
+	r, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/%s", pURL, d.InstanceName), nil)
 	resp, err := http.DefaultClient.Do(r)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		log.Println(err, resp)
@@ -289,7 +302,13 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	d.Hostname = pwdUrl.Host
 	if !strings.Contains(pwdUrl.Path, "/p/") {
 		//try to create a new session on the pwd before failing
-		r, _ := http.NewRequest("POST", fmt.Sprintf("%s://%s:%s/", d.Scheme, d.Hostname, d.Port), nil)
+		var pURL string
+		if d.Scheme == "http" {
+		 pURL = fmt.Sprintf("%s://%s:%s/", d.Scheme, d.Hostname, d.Port)
+		} else {
+		 pURL = fmt.Sprintf("%s://%s:%s/", d.Scheme, d.Hostname, d.SSLPort)
+		}
+		r, _ := http.NewRequest("POST", pURL, nil)
 		//the playground does a redirect on the first POST, need to handle it (otherwise the resp.Body will be empty)
 		client := http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -315,7 +334,13 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 			return errors.New("Error reading session ID (empty ?)")
 		}
 		//see if the session actually exists
-		r, _ := http.NewRequest("GET", fmt.Sprintf("%s://%s:%s/sessions/%s", d.Scheme,d.Hostname, d.Port, d.SessionId), nil)
+		var pURL string
+		if d.Scheme == "http" {
+		 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s", d.Scheme, d.Hostname, d.Port, d.SessionId)
+		} else {
+		 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
+		}
+		r, _ := http.NewRequest("GET", pURL, nil)
 		resp, err := http.DefaultClient.Do(r)
 		if err != nil || resp.StatusCode >= http.StatusBadRequest {
 			log.Println(err, resp)
