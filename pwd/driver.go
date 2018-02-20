@@ -103,6 +103,7 @@ func (d *Driver) Create() error {
 	if jsonErr != nil {
 		return jsonErr
 	}
+	log.Println("conf ",string(b))
 	//careful on using the right scheme and the right port (a PWD that starts with http or https is not the same)
 	var pURL string
 	if d.Scheme == "http" {
