@@ -103,7 +103,7 @@ func (d *Driver) Create() error {
 	if jsonErr != nil {
 		return jsonErr
 	}
-	log.Println("conf ",string(b))
+
 	//careful on using the right scheme and the right port (a PWD that starts with http or https is not the same)
 	var pURL string
 	if d.Scheme == "http" {
@@ -111,7 +111,7 @@ func (d *Driver) Create() error {
 	} else {
 	 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
 	}
-	resp, err := http.Post(pURL, "application/json", bytes.NewReader(b))
+	resp, err := http.Post(pURL, "application/json", &b)
 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Could not create instance %v %v", err, resp)
