@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/docker/machine/libmachine/drivers/plugin"
-	"github.com/play-with-docker/docker-machine-driver-pwd/pwd"
+	"github.com/sofianinho/docker-machine-driver-pwd/pwd"
 )
 
 func main() {

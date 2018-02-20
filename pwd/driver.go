@@ -52,6 +52,12 @@ type instanceConfig struct {
 	Key        []byte
 }
 
+type apiReply struct {
+	SessionId string `json:"session_id"`
+	Hostname  string `json:"hostname"`
+	Status    string `json:"status, omitempty"`
+}
+
 var notImplemented error = errors.New("Not implemented")
 
 func dump(infos ...interface{}) {
@@ -256,6 +262,7 @@ func (d *Driver) PreCreateCheck() error {
 }
 
 func (d *Driver) Remove() error {
+	log.Println("deleting your sandbox: ", d.InstanceName, ", from session: ", fmt.Sprintf("http://%s:%s/p/%s", d.Hostname, d.Port, d.SessionId))
 	r, _ := http.NewRequest("DELETE", fmt.Sprintf("http://%s:%s/sessions/%s/instances/%s", d.Hostname, d.Port, d.SessionId, d.InstanceName), nil)
 	resp, err := http.DefaultClient.Do(r)
 	if err != nil || resp.StatusCode != http.StatusOK {
@@ -271,17 +278,48 @@ func (d *Driver) Restart() error {
 
 func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	dump(opts)
+	d.SSLPort = opts.String("pwd-ssl-port")
+	d.Port = opts.String("pwd-port")
 	pwdUrl, err := url.Parse(opts.String("pwd-url"))
 	if err != nil {
 		return errors.New("Incorrect PWD URL")
 	}
-	if d.SessionId = strings.TrimPrefix(pwdUrl.Path, "/p/"); len(d.SessionId) == 0 {
-		return errors.New("Incorrect PWD URL")
-	}
 	d.Hostname = pwdUrl.Host
-
-	d.SSLPort = opts.String("pwd-ssl-port")
-	d.Port = opts.String("pwd-port")
+	if !strings.Contains(pwdUrl.Path, "/p/") {
+		//try to create a new session on the pwd before failing
+		r, _ := http.NewRequest("POST", fmt.Sprintf("http://%s:%s/", d.Hostname, d.Port), nil)
+		//the playground does a redirect on the first POST, need to handle it (otherwise the resp.Body will be empty)
+		client := http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
+			return http.ErrUseLastResponse
+		}}
+		resp, err := client.Do(r)
+		if err != nil || resp.StatusCode >= http.StatusBadRequest {
+			log.Println(err, resp)
+			return errors.New("Error creating new session: " + err.Error())
+		}
+		//read the reply from playground, which is of type apiReply
+		var s apiReply
+		err = json.NewDecoder(resp.Body).Decode(&s)
+		if err != nil {
+			log.Println(err)
+			return errors.New("Error parsing playground api reply: " + err.Error())
+		}
+		d.SessionId = s.SessionId
+		log.Println("Created a new session for you: ", s.SessionId, ". You can connect to http://", fmt.Sprintf("http://%s:%s/p/%s", d.Hostname, d.Port, d.SessionId))
+	} else {
+		if d.SessionId = strings.TrimPrefix(pwdUrl.Path, "/p/"); len(d.SessionId) == 0 {
+			//there was a problem parsing this session that's provided
+			log.Println(err)
+			return errors.New("Error reading session ID (empty ?)")
+		}
+		//see if the session actually exists
+		r, _ := http.NewRequest("GET", fmt.Sprintf("http://%s:%s/sessions/%s", d.Hostname, d.Port, d.SessionId), nil)
+		resp, err := http.DefaultClient.Do(r)
+		if err != nil || resp.StatusCode >= http.StatusBadRequest {
+			log.Println(err, resp)
+			return errors.New("Session " + d.SessionId + " does not exist")
+		}
+	}
 	return nil
 }
 
