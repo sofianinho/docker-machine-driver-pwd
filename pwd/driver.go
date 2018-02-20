@@ -1,6 +1,7 @@
 package pwd
 
 import (
+	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -110,7 +111,7 @@ func (d *Driver) Create() error {
 	} else {
 	 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
 	}
-	resp, err := http.Post(pURL, "application/json", &b)
+	resp, err := http.Post(pURL, "", bytes.NewReader(b))
 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Could not create instance %v %v", err, resp)
