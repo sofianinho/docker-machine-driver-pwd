@@ -34,6 +34,7 @@ type Driver struct {
 	SSLPort      string
 	Port         string
 	URL          string
+	Scheme	     string
 	Created      bool
 	InstanceName string
 }
@@ -102,7 +103,7 @@ func (d *Driver) Create() error {
 	if jsonErr != nil {
 		return jsonErr
 	}
-	resp, err := http.Post(fmt.Sprintf("http://%s:%s/sessions/%s/instances", d.Hostname, d.Port, d.SessionId), "application/json", bytes.NewReader(b))
+	resp, err := http.Post(fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.Port, d.SessionId), "application/json", bytes.NewReader(b))
 
 	if err != nil || resp.StatusCode != http.StatusOK {
 		return fmt.Errorf("Could not create instance %v %v", err, resp)
@@ -262,8 +263,8 @@ func (d *Driver) PreCreateCheck() error {
 }
 
 func (d *Driver) Remove() error {
-	log.Println("deleting your sandbox: ", d.InstanceName, ", from session: ", fmt.Sprintf("http://%s:%s/p/%s", d.Hostname, d.Port, d.SessionId))
-	r, _ := http.NewRequest("DELETE", fmt.Sprintf("http://%s:%s/sessions/%s/instances/%s", d.Hostname, d.Port, d.SessionId, d.InstanceName), nil)
+	log.Println("deleting your sandbox: ", d.InstanceName, ", from session: ", fmt.Sprintf("%s://%s:%s/p/%s", d.Scheme, d.Hostname, d.Port, d.SessionId))
+	r, _ := http.NewRequest("DELETE", fmt.Sprintf("%s://%s:%s/sessions/%s/instances/%s", d.Scheme, d.Hostname, d.Port, d.SessionId, d.InstanceName), nil)
 	resp, err := http.DefaultClient.Do(r)
 	if err != nil || resp.StatusCode != http.StatusOK {
 		log.Println(err, resp)
@@ -284,10 +285,11 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 	if err != nil {
 		return errors.New("Incorrect PWD URL")
 	}
+	d.Scheme = pwdUrl.Scheme
 	d.Hostname = pwdUrl.Host
 	if !strings.Contains(pwdUrl.Path, "/p/") {
 		//try to create a new session on the pwd before failing
-		r, _ := http.NewRequest("POST", fmt.Sprintf("http://%s:%s/", d.Hostname, d.Port), nil)
+		r, _ := http.NewRequest("POST", fmt.Sprintf("%s://%s:%s/", d.Scheme, d.Hostname, d.Port), nil)
 		//the playground does a redirect on the first POST, need to handle it (otherwise the resp.Body will be empty)
 		client := http.Client{CheckRedirect: func(req *http.Request, via []*http.Request) error {
 			return http.ErrUseLastResponse
@@ -305,7 +307,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 			return errors.New("Error parsing playground api reply: " + err.Error())
 		}
 		d.SessionId = s.SessionId
-		log.Println("Created a new session for you: ", s.SessionId, ". You can connect to http://", fmt.Sprintf("http://%s:%s/p/%s", d.Hostname, d.Port, d.SessionId))
+		log.Println("Created a new session for you: ", s.SessionId, ". You can connect to ", fmt.Sprintf("%s://%s:%s/p/%s",d.Scheme, d.Hostname, d.Port, d.SessionId))
 	} else {
 		if d.SessionId = strings.TrimPrefix(pwdUrl.Path, "/p/"); len(d.SessionId) == 0 {
 			//there was a problem parsing this session that's provided
@@ -313,7 +315,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 			return errors.New("Error reading session ID (empty ?)")
 		}
 		//see if the session actually exists
-		r, _ := http.NewRequest("GET", fmt.Sprintf("http://%s:%s/sessions/%s", d.Hostname, d.Port, d.SessionId), nil)
+		r, _ := http.NewRequest("GET", fmt.Sprintf("%s://%s:%s/sessions/%s", d.Scheme,d.Hostname, d.Port, d.SessionId), nil)
 		resp, err := http.DefaultClient.Do(r)
 		if err != nil || resp.StatusCode >= http.StatusBadRequest {
 			log.Println(err, resp)
