@@ -23,4 +23,9 @@ _testmain.go
 *.test
 *.prof
 
+.vscode
+*.swp
 build
+
+# Vendor folder
+vendor/
