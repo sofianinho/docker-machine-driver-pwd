@@ -1,7 +1,6 @@
 package pwd
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
