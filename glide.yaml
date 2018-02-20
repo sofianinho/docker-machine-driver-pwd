@@ -1,0 +1,17 @@
+package: github.com/sofianinho/docker-machine-driver-pwd
+import:
+- package: github.com/davecgh/go-spew
+  version: ^1.1.0
+  subpackages:
+  - spew
+- package: github.com/docker/machine
+  version: ^0.13.0
+  subpackages:
+  - libmachine/cert
+  - libmachine/drivers
+  - libmachine/drivers/plugin
+  - libmachine/mcnflag
+  - libmachine/mcnutils
+  - libmachine/state
+- package: github.com/google/uuid
+  version: ^0.2.0
