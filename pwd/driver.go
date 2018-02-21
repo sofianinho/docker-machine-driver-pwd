@@ -1,7 +1,6 @@
 package pwd
 
 import (
-	"bytes"
 	"crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -34,7 +33,7 @@ type Driver struct {
 	SSLPort      string
 	Port         string
 	URL          string
-	Scheme	     string
+	Scheme       string
 	Created      bool
 	InstanceName string
 }
@@ -107,13 +106,15 @@ func (d *Driver) Create() error {
 	//careful on using the right scheme and the right port (a PWD that starts with http or https is not the same)
 	var pURL string
 	if d.Scheme == "http" {
-	 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.Port, d.SessionId)
+		pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.Port, d.SessionId)
 	} else {
-	 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
+		pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
 	}
-	resp, err := http.Post(pURL, "", bytes.NewReader(b))
+	//resp, err := http.Post(pURL, "", bytes.NewReader(b))
+	resp, err := http.Post(pURL, "", nil)
 
 	if err != nil || resp.StatusCode != http.StatusOK {
+		dump(pURL, b)
 		return fmt.Errorf("Could not create instance %v %v", err, resp)
 	}
 
@@ -273,9 +274,9 @@ func (d *Driver) PreCreateCheck() error {
 func (d *Driver) Remove() error {
 	var pURL string
 	if d.Scheme == "http" {
-	 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.Port, d.SessionId)
+		pURL = fmt.Sprintf("%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.Port, d.SessionId)
 	} else {
-	 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
+		pURL = fmt.Sprintf("%s:%s/sessions/%s/instances", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
 	}
 	log.Println("deleting your sandbox: ", d.InstanceName, ", from session: ", pURL)
 	r, _ := http.NewRequest("DELETE", fmt.Sprintf("%s/%s", pURL, d.InstanceName), nil)
@@ -305,9 +306,9 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		//try to create a new session on the pwd before failing
 		var pURL string
 		if d.Scheme == "http" {
-		 pURL = fmt.Sprintf("%s://%s:%s/", d.Scheme, d.Hostname, d.Port)
+			pURL = fmt.Sprintf("%s:%s/", d.Hostname, d.Port)
 		} else {
-		 pURL = fmt.Sprintf("%s://%s:%s/", d.Scheme, d.Hostname, d.SSLPort)
+			pURL = fmt.Sprintf("%s:%s/", d.Hostname, d.SSLPort)
 		}
 		r, _ := http.NewRequest("POST", pURL, nil)
 		//the playground does a redirect on the first POST, need to handle it (otherwise the resp.Body will be empty)
@@ -327,7 +328,7 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 			return errors.New("Error parsing playground api reply: " + err.Error())
 		}
 		d.SessionId = s.SessionId
-		log.Println("Created a new session for you: ", s.SessionId, ". You can connect to ", fmt.Sprintf("%s://%s:%s/p/%s",d.Scheme, d.Hostname, d.Port, d.SessionId))
+		log.Println("Created a new session for you: ", s.SessionId, ". You can connect to ", fmt.Sprintf("%s://%s:%s/p/%s", d.Scheme, d.Hostname, d.Port, d.SessionId))
 	} else {
 		if d.SessionId = strings.TrimPrefix(pwdUrl.Path, "/p/"); len(d.SessionId) == 0 {
 			//there was a problem parsing this session that's provided
@@ -337,9 +338,9 @@ func (d *Driver) SetConfigFromFlags(opts drivers.DriverOptions) error {
 		//see if the session actually exists
 		var pURL string
 		if d.Scheme == "http" {
-		 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s", d.Scheme, d.Hostname, d.Port, d.SessionId)
+			pURL = fmt.Sprintf("%s://%s:%s/sessions/%s", d.Scheme, d.Hostname, d.Port, d.SessionId)
 		} else {
-		 pURL = fmt.Sprintf("%s://%s:%s/sessions/%s", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
+			pURL = fmt.Sprintf("%s://%s:%s/sessions/%s", d.Scheme, d.Hostname, d.SSLPort, d.SessionId)
 		}
 		r, _ := http.NewRequest("GET", pURL, nil)
 		resp, err := http.DefaultClient.Do(r)
